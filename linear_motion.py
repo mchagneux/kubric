@@ -10,16 +10,18 @@ from datetime import datetime
 from kubric.renderer.blender import Blender as KubricRenderer
 import matplotlib.pyplot as plt
 from time import time
-
+import dill 
+import json
+preview_from_above = False
 date = datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
 logging.basicConfig(level="INFO")
 
 nb_videos = 1
 resolution = (128, 128)
-samples_per_pixel = 4
+samples_per_pixel = 2
 fps = 6
 
-duration = 3*60
+duration = 6*60
 max_num_objects = duration 
 output_dir = os.path.join('output', date)
 num_speed_jumps = duration // 10
@@ -97,17 +99,19 @@ def generate_video(
                                     camera_orientation_curve, 
                                     num_frames)
 
-    utils.preview_scene_along_axis(
-                                camera_position_curve, 
-                                camera_positions,
-                                camera_orientations,
-                                objects_position_curve,
-                                objects_positions,
-                                objects_scales,
-                                axis=1)
 
-    plt.savefig(os.path.join(output_dir, 'preview_from_above'))
-    plt.close()
+    if preview_from_above: 
+        utils.preview_scene_along_axis(
+                                    camera_position_curve, 
+                                    camera_positions,
+                                    camera_orientations,
+                                    objects_position_curve,
+                                    objects_positions,
+                                    objects_scales,
+                                    axis=1)
+
+        plt.savefig(os.path.join(output_dir, 'preview_from_above'))
+        plt.close()
     
 
     scene = kb.Scene(
@@ -117,7 +121,6 @@ def generate_video(
 
     renderer = KubricRenderer(scene, 
                             samples_per_pixel=samples_per_pixel)
-    renderer.use_gpu = True
 
     # floor = kb.Cube(position=(0,0,-1), scale=(100, 100, 0.01))
 
@@ -157,10 +160,7 @@ def generate_video(
     print('Writing images...')
     kb.write_image_dict(frames_dict, images_dir)
 
-    print('Computing annotations...')
-    N_plus, N_minus, visibility_masks = utils.visibility_masks_from_segmentations(
-                                                        frames_dict['segmentation'],
-                                                        output_dir)
+    
     print('Encoding video...')
     media.write_video(path=os.path.join(output_dir, 'video.mp4'),
                     images=frames_dict['rgba'][:,:,:,:-1],
@@ -169,12 +169,25 @@ def generate_video(
 
     print('Generation time', time() - time0)
 
-for seed in range(nb_videos):
-    generate_video(
-            os.path.join(output_dir, str(seed)), 
-            seed, 
-            fps, 
-            duration, 
-            resolution, 
-            samples_per_pixel, 
-            max_num_objects)
+    print('Computing annotations...')
+    N, N_plus, N_minus, visibility_masks = utils.visibility_masks_from_segmentations(
+                                                        frames_dict['segmentation'])
+    
+    print('Saving annotations...')
+    np.save(os.path.join(output_dir, 'N.npy'), N)
+    np.save(os.path.join(output_dir, 'N_plus.npy'), N_plus)
+    np.save(os.path.join(output_dir, 'N_minus.npy'), N_minus)
+    with open(os.path.join(output_dir, 'visibility_masks'), 'wb') as f: 
+        dill.dump(visibility_masks, f)
+    
+
+    
+seed = 89
+generate_video(
+        os.path.join(output_dir, str(seed+256)), 
+        seed, 
+        fps, 
+        duration, 
+        resolution, 
+        samples_per_pixel, 
+        max_num_objects)

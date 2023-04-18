@@ -178,7 +178,7 @@ def add_objects(scene: kb.Scene,
     
     for position, scale in zip(positions, scales):
         obj = kb.Sphere(position)
-        obj.material = kb.PrincipledBSDFMaterial(color=kb.Color(1.0, 0.0, 0.0))
+        obj.material = kb.PrincipledBSDFMaterial(color=kb.Color(1.0, 0.5, 0.8))
         obj.scale = scale / np.max(obj.bounds[1] - obj.bounds[0])
 
         scene += obj
@@ -207,10 +207,10 @@ def visibility_masks_from_segmentations(segmentations, path=None):
     object_ids_in_prev_frame = []
     N_plus = np.zeros((num_frames,))
     N_minus = np.zeros((num_frames,))
-
+    N_objects = np.zeros((num_frames,))
     for frame_nb, frame in enumerate(segmentations):
         object_ids_in_frame = np.unique(frame)
-
+        N_objects[frame_nb] = len(object_ids_in_frame)
         for object_id in object_ids_in_frame:
             if object_id not in object_ids_in_prev_frame:
                 N_plus[frame_nb] += 1
@@ -244,7 +244,7 @@ def visibility_masks_from_segmentations(segmentations, path=None):
         plt.savefig(os.path.join(path,'N_plus_N_minus'))
         plt.close()
         
-    return N_plus, N_minus, visibility_masks
+    return N_objects, N_plus, N_minus, visibility_masks
 
 if __name__ == '__main__':
 
